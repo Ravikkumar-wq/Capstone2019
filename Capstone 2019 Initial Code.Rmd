@@ -1,0 +1,171 @@
+---
+title: "Ravikkumar Rajasingham Capstone 2019"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+Load necessary libraries and packages 
+```{r setup, include=FALSE}
+install.packages("corrplot", repos = 'http://cran.us.r-project.org')
+library(corrplot)
+install.packages("ggplot2", repos = 'http://cran.us.r-project.org')
+library(ggplot2)
+library(gplots)
+library(rpart)
+install.packages("randomForest", repos = 'http://cran.us.r-project.org')
+library(randomForest)
+```
+
+
+Load Dataset into R and add Column Names
+```{r}
+adult <- read.csv("~/Desktop/adult.data", header=FALSE)
+names(adult) <-c("Age", "Workclass", "Fnlwgt", "Education", "Education-Num", "Marital-Status", "Occupation", "Relationship", "Race", "Sex", "Capital-Gain", "Capital-Loss", "Hours-Per-Week", "Native-Country", "Income")
+head(adult)
+
+```
+
+
+Split Data into Training and Testing
+```{r}
+train_index <- sample(1:nrow(adult), 0.75 * nrow(adult))
+training <- adult[train_index,]
+testing <-adult[-train_index,]
+```
+
+Income Distribution 
+```{r}
+Income<-table(training$Income)
+barplot(Income)
+result = summary(training$Income)/nrow(training)*100
+result
+```
+
+
+Checking and removing missing values
+```{r}
+na_count <-sapply(training, function(y) sum(length(which(is.na(y)))))
+na_count <-data.frame(na_count)
+na_count
+
+na_count_test <-sapply(testing, function(y) sum(length(which(is.na(y)))))
+na_count_test <-data.frame(na_count)
+na_count_test
+```
+
+
+Re-factorize attributes
+```{r}
+training$Workclass <- factor(training$Workclass)
+training$Education <- factor(training$Education)
+training$`Marital-Status` <- factor(training$`Marital-Status`)
+training$Occupation <- factor(training$Occupation)
+training$Relationship <- factor(training$Relationship)
+training$Race <- factor(training$Race)
+training$Sex <- factor(training$Sex)
+training$`Native-Country` <- factor(training$`Native-Country`)
+```
+
+Basic Information of Dataset
+```{r}
+summary (training)
+str(training)
+```
+
+Stats for Numerical Attributes
+```{r}
+hist(training$Age, main = "Age Distribution", xlab = "Age", col = "forestgreen")
+boxplot(training$Age, main = "Age")
+
+hist(training$Fnlwgt, main = "Fnlwgt Distribution", xlab = "Fnlwgt", col = "forestgreen")
+boxplot(training$Fnlwgt, main = "Fnlwgt")
+
+hist(training$`Education-Num`, main = "Education-Num Distribution", xlab = "Education-Num", col = "forestgreen")
+boxplot(training$`Education-Num`, main = "Education-Num")
+
+hist(log10(training$`Capital-Gain`), main = "Capital-Gain", xlab = "Capital-Gain", col = "forestgreen")
+boxplot(training$`Capital-Gain`, main = "Capital-Gain")
+
+hist(log10(training$`Capital-Loss`), main = "Capital-Loss", xlab = "Capital-Loss", col = "forestgreen")
+boxplot(training$`Capital-Loss`, main = "Capital-Loss")
+
+hist(training$`Hours-Per-Week`, main = "Hours-Per-Week Distribution", xlab = "Hours-Per-Week", col = "forestgreen")
+boxplot(training$`Hours-Per-Week`, main = "Hours-Per-Week")
+```
+
+Stats for Categorical Attributes
+```{r}
+tbl <- with(training, table(training$Income, training$Workclass))
+barplot(tbl,main = "Workclass Distribution", legend = TRUE, las=2)
+
+tb2 <- with(training, table(training$Income, training$Education))
+barplot(tb2,main = "Education Distribution", legend = TRUE, las=2)
+
+tb3 <- with(training, table(training$Income, training$`Marital-Status`))
+barplot(tb3,main = "Marital Status Distribution", legend = TRUE, las=2)
+
+tb4 <- with(training, table(training$Income, training$Occupation))
+barplot(tb4,main = "Occupation Distribution", legend = TRUE, las=2)
+
+tb5 <- with(training, table(training$Income, training$Relationship))
+barplot(tb5,main = "Relationship Distribution", legend = TRUE, las=2)
+
+tb6 <- with(training, table(training$Income, training$Race))
+barplot(tb6,main = "Race Distribution", legend = TRUE, las=2)
+
+tb7 <- with(training, table(training$Income, training$Sex))
+barplot(tb7,main = "Sex Distribution", legend = TRUE, las=2)
+
+tb8 <- with(training, table(training$Income, training$`Native-Country`))
+barplot(tb8,main = "Native Country Distribution", legend = TRUE, las=2)
+```
+
+Correlation between Income and Numerical Attributes
+```{r}
+training$Income <- as.numeric(training$Income)
+
+x <- cor(training[sapply(training, function(x) !is.factor(x))])
+corrplot(x, method = "number")
+```
+
+Save Training and Testing data
+```{r}
+write.csv(training, "training.csv", row.names = FALSE)
+write.csv(testing, "testing.csv", row.names = FALSE)
+```
+
+Log Model
+```{r}
+
+model <- glm(Income ~ Age + Workclass + Education + `Marital-Status` + Occupation + Race + Sex + `Hours-Per-Week`, data = training, family = "binomial")
+summary(model)
+
+prediction <- predict(model, training, type = 'response')
+predict <- rep('<=50K', length(prediction))
+predict[prediction>=.5] <- '>50K'
+table <- table(predict, training$Income)
+table
+```
+
+Random Forest Model
+```{r}
+model2 <- randomForest(Income ~ Age + Workclass + Education + Occupation + Race + Sex, data = training, ntree = 400)
+summary(model2)
+prediction2 <- predict(model2, training, type = 'class')
+prediction2
+table2 <- table(prediction2, training$Income)
+table2
+```
+
+Naive Bayes Model
+```{r}
+install.packages("naivebayes", repos = 'http://cran.us.r-project.org')
+library(naivebayes)
+model3 <- naive_bayes(Income ~ Age + Workclass + Education + `Marital-Status` + Occupation + Race + Sex + `Hours-Per-Week`, data = training)
+prediction3 <- predict(model3, training, type = 'class')
+prediction3
+table3 <- table(prediction3, training$Income)
+table3
+```
+
